@@ -51,8 +51,8 @@ config:
     login: admin
     password: adminpass
     extraAccounts:
-      - {login: alice, password: alicepass}
-      - {login: bob, password: bobpass}
+      - { login: alice, password: alicepass }
+      - { login: bob, password: bobpass }
 ```
 
 ### Credentials from a Kubernetes Secret or ConfigMap
@@ -77,14 +77,14 @@ kubectl create secret generic proxy-auth \
 
 ```yaml
 config:
-  auth: {login: null, password: null} # leave unset - injected via deployment.env below
+  auth: { login: null, password: null } # leave unset - injected via deployment.env below
 
 deployment:
   env:
     - name: PROXY_LOGIN
-      valueFrom: {secretKeyRef: {name: 'proxy-auth', key: 'login'}}
+      valueFrom: { secretKeyRef: { name: "proxy-auth", key: "login" } }
     - name: PROXY_PASSWORD
-      valueFrom: {secretKeyRef: {name: 'proxy-auth', key: 'password'}}
+      valueFrom: { secretKeyRef: { name: "proxy-auth", key: "password" } }
 ```
 
 #### Login and password from a ConfigMap
@@ -101,9 +101,9 @@ kubectl create configmap proxy-config \
 deployment:
   env:
     - name: PROXY_LOGIN
-      valueFrom: {configMapKeyRef: {name: 'proxy-config', key: 'login'}}
+      valueFrom: { configMapKeyRef: { name: "proxy-config", key: "login" } }
     - name: PROXY_PASSWORD
-      valueFrom: {configMapKeyRef: {name: 'proxy-config', key: 'password'}}
+      valueFrom: { configMapKeyRef: { name: "proxy-config", key: "password" } }
 ```
 
 #### Extra accounts from a Secret
@@ -127,7 +127,7 @@ config:
 deployment:
   env:
     - name: EXTRA_ACCOUNTS
-      valueFrom: {secretKeyRef: {name: proxy-extra-accounts, key: accounts}}
+      valueFrom: { secretKeyRef: { name: proxy-extra-accounts, key: accounts } }
 ```
 
 ### Custom listen ports
@@ -214,15 +214,15 @@ First, create a ConfigMap with a valid 3proxy configuration:
 ```text
 nserver 1.1.1.1
 nserver 8.8.8.8
-nscache 65536
+nscache 512
 timeouts 1 5 30 60 180 1800 15 60
-log /dev/stdout
+log /dev/null
 maxconn 512
 users myuser:CL:mypassword
 auth strong
 allow myuser
-proxy -a -p3128
-socks -a -p1080
+proxy -a -p8080
+socks -a -p8081
 flush
 ```
 
@@ -237,7 +237,7 @@ kubectl create configmap 3proxy-custom-config \
 deployment:
   volumes:
     - name: custom-cfg
-      configMap: {name: 3proxy-custom-config}
+      configMap: { name: 3proxy-custom-config }
   volumeMounts:
     - name: custom-cfg
       mountPath: /etc/3proxy/3proxy.cfg

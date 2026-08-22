@@ -133,7 +133,7 @@ LABEL \
 
 COPY --from=rootfs /tmp/rootfs /
 USER 10001:10001
-ENV PROXY_PORT=3128 SOCKS_PORT=1080
+ENV PROXY_PORT=8080 SOCKS_PORT=8081
 
 HEALTHCHECK --interval=10s --start-interval=1s --start-period=2s CMD [\
   "/bin/portcheck", "--port-env", "PROXY_PORT" \

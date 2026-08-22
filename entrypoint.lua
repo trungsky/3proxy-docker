@@ -84,15 +84,15 @@ local probe = io.open(CFG_PATH, "r")
 if probe then
   probe:close() -- skip config generation when the file already exists (e.g. mounted from outside)
 else
-  local log_output         = getenv(ENV_LOG_OUTPUT,         "/dev/stdout")
-  local primary_resolver   = getenv(ENV_PRIMARY_RESOLVER,   "1.0.0.1")
-  local secondary_resolver = getenv(ENV_SECONDARY_RESOLVER, "8.8.4.4")
+  local log_output         = getenv(ENV_LOG_OUTPUT,         "/dev/null")
+  local primary_resolver   = getenv(ENV_PRIMARY_RESOLVER,   "1.1.1.1")
+  local secondary_resolver = getenv(ENV_SECONDARY_RESOLVER, "8.8.8.8")
   local max_connections    = getenv(ENV_MAX_CONNECTIONS,    "512")
-  local dns_cache_size     = getenv(ENV_DNS_CACHE_SIZE,     "65536")
+  local dns_cache_size     = getenv(ENV_DNS_CACHE_SIZE,     "512")
   local proxy_login        = getenv(ENV_PROXY_LOGIN,        "")
   local proxy_password     = getenv(ENV_PROXY_PASSWORD,     "")
-  local proxy_port         = getenv(ENV_PROXY_PORT,         "3128")
-  local socks_port         = getenv(ENV_SOCKS_PORT,         "1080")
+  local proxy_port         = getenv(ENV_PROXY_PORT,         "8080")
+  local socks_port         = getenv(ENV_SOCKS_PORT,         "8081")
   local extra_accounts     = parse_extra_accounts(getenv(ENV_EXTRA_ACCOUNTS, ""))
   local extra_config       = getenv(ENV_EXTRA_CONFIG, ""):gsub("\\n", "\n") -- expand literal \n
   local proxy_extra_args   = getenv(ENV_PROXY_EXTRA_ARGS, "")
@@ -138,9 +138,9 @@ else
   -- upstream DNS resolvers for all hostname resolution; up to 5 servers, default port 53/UDP
   toConfig("nserver " .. primary_resolver)
   toConfig("nserver " .. secondary_resolver)
-  toConfig("nserver 1.1.1.1")
+  toConfig("nserver 1.0.0.1")
+  toConfig("nserver 8.8.4.4")
   toConfig("nserver 9.9.9.9")
-  toConfig("nserver 8.8.8.8")
   toConfig("")
   -- DNS response cache table size in entries (min 256); reduces latency and upstream DNS traffic
   toConfig("nscache " .. dns_cache_size)

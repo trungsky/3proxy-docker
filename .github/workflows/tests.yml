@@ -7,10 +7,10 @@ on:
   workflow_dispatch: {}
   push:
     branches: [master, main]
-    tags-ignore: ['**']
-    paths-ignore: ['**.md']
+    tags-ignore: ["**"]
+    paths-ignore: ["**.md"]
   pull_request:
-    paths-ignore: ['**.md']
+    paths-ignore: ["**.md"]
 
 concurrency:
   group: ${{ github.ref }}
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with: {fetch-depth: 0}
+        with: { fetch-depth: 0 }
       - uses: gacts/gitleaks@v1
 
   lua-lint:
@@ -36,7 +36,7 @@ jobs:
   chart-lint:
     name: Lint the chart
     runs-on: ubuntu-latest
-    defaults: {run: {working-directory: ./deploy/helm}}
+    defaults: { run: { working-directory: ./deploy/helm } }
     steps:
       - uses: actions/checkout@v7
       - uses: azure/setup-helm@v5
@@ -82,7 +82,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
-        with: {name: docker-image, path: "${{runner.temp}}"}
+        with: { name: docker-image, path: "${{runner.temp}}" }
       - run: docker load -i ${{ runner.temp }}/image.tar
       - uses: helm/kind-action@v1
       - run: kind load docker-image 3proxy:ci --name chart-testing
@@ -101,7 +101,7 @@ jobs:
             --image=curlimages/curl:latest \
             --restart=Never --rm -i \
             -- curl -v --fail \
-              --proxy http://the3proxy:3128 \
+              --proxy http://the3proxy:8080 \
               --proxy-user evil:live \
               --connect-timeout 5 \
               --max-time 10 \
@@ -113,20 +113,20 @@ jobs:
     needs: [build-docker-image]
     steps:
       - uses: actions/download-artifact@v8
-        with: {name: docker-image, path: "${{ runner.temp }}"}
+        with: { name: docker-image, path: "${{ runner.temp }}" }
       - run: docker load --input ${{ runner.temp }}/image.tar
-      - run: docker run --rm -d --name the3proxy -p "3128:3128/tcp" -p "1080:1080/tcp" 3proxy:ci
+      - run: docker run --rm -d --name the3proxy -p "8080:8080/tcp" -p "8081:8081/tcp" 3proxy:ci
       - uses: stringbean/docker-healthcheck-action@v3
-        with: {container: the3proxy, wait-time: 10, require-healthy: true}
+        with: { container: the3proxy, wait-time: 10, require-healthy: true }
       - run: |
           curl -v --fail \
-            --proxy http://127.0.0.1:3128 \
+            --proxy http://127.0.0.1:8080 \
             --connect-timeout 3 \
             --max-time 3 \
             https://www.cloudflare.com/robots.txt
       - run: |
           curl -v --fail \
-            --proxy socks5://127.0.0.1:1080 \
+            --proxy socks5://127.0.0.1:8081 \
             --connect-timeout 3 \
             --max-time 3 \
             https://www.cloudflare.com/robots.txt
@@ -138,32 +138,32 @@ jobs:
     needs: [build-docker-image]
     steps:
       - uses: actions/download-artifact@v8
-        with: {name: docker-image, path: "${{ runner.temp }}"}
+        with: { name: docker-image, path: "${{ runner.temp }}" }
       - run: docker load --input ${{ runner.temp }}/image.tar
       - run: |
           docker run --rm -d --name the3proxy \
-            -p "3128:3128/tcp" -p "1080:1080/tcp" \
+            -p "8080:8080/tcp" -p "8081:8081/tcp" \
             -e "PROXY_LOGIN=evil" -e "PROXY_PASSWORD=live" -e 'EXTRA_ACCOUNTS=foo:bar' \
               3proxy:ci
       - uses: stringbean/docker-healthcheck-action@v3
-        with: {container: the3proxy, wait-time: 10, require-healthy: true}
+        with: { container: the3proxy, wait-time: 10, require-healthy: true }
       - run: |
           curl -v --fail \
-            --proxy http://127.0.0.1:3128 \
+            --proxy http://127.0.0.1:8080 \
             --proxy-user evil:live \
             --connect-timeout 3 \
             --max-time 3 \
             https://www.cloudflare.com/robots.txt
       - run: |
           curl -v --fail \
-            --proxy http://127.0.0.1:3128 \
+            --proxy http://127.0.0.1:8080 \
             --proxy-user foo:bar \
             --connect-timeout 3 \
             --max-time 3 \
             https://www.cloudflare.com/robots.txt
       - run: |
           curl -v --fail \
-            --proxy socks5://127.0.0.1:1080 \
+            --proxy socks5://127.0.0.1:8081 \
             --proxy-user evil:live \
             --connect-timeout 3 \
             --max-time 3 \

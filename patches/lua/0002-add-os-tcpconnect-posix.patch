@@ -27,7 +27,7 @@
 +// On error returns nil, error_message (string), errno (integer).
 +//
 +// Lua usage -- health check example:
-+//   local f, err, code = os.tcpconnect("127.0.0.1", 3128, 3000)
++//   local f, err, code = os.tcpconnect("127.0.0.1", 8080, 3000)
 +//   if not f then
 +//     io.stderr:write("connect failed: " .. err .. " (errno " .. code .. ")\n")
 +//     os.exit(1)

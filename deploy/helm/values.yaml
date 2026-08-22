@@ -40,13 +40,13 @@ deployment:
   # defaults by Helm and does not clear them).
   # @default -- *non-root, read-only fs, no privilege escalation*
   securityContext:
-    runAsNonRoot: true              # refuse to start if the image tries to run as root
-    runAsUser: 10001                # UID defined in the Dockerfile
-    runAsGroup: 10001               # GID defined in the Dockerfile
-    readOnlyRootFilesystem: true    # /etc/3proxy and /tmp are always mounted as emptyDir volumes
+    runAsNonRoot: true # refuse to start if the image tries to run as root
+    runAsUser: 10001 # UID defined in the Dockerfile
+    runAsGroup: 10001 # GID defined in the Dockerfile
+    readOnlyRootFilesystem: true # /etc/3proxy and /tmp are always mounted as emptyDir volumes
     allowPrivilegeEscalation: false # prevent setuid/setcap privilege escalation
-    capabilities: {drop: [ALL]}     # drop all Linux capabilities; the proxy needs none
-    seccompProfile: {type: RuntimeDefault} # restrict syscalls to the default allowlist
+    capabilities: { drop: [ALL] } # drop all Linux capabilities; the proxy needs none
+    seccompProfile: { type: RuntimeDefault } # restrict syscalls to the default allowlist
   probe:
     # -- Named port to probe - `proxy` or `socks`
     port: proxy
@@ -58,8 +58,8 @@ deployment:
   # [found here](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
   # @default -- *memory: 16/128Mi*
   resources:
-    requests: {memory: 16Mi} # idle footprint: ~5 MiB measured
-    limits: {memory: 128Mi}  # peak at 512 simultaneous connections: ~94 MiB measured
+    requests: { memory: 16Mi } # idle footprint: ~5 MiB measured
+    limits: { memory: 128Mi } # peak at 512 simultaneous connections: ~94 MiB measured
   # -- Additional volumes to add to the pod (supports templating), more information can be
   # [found here](https://kubernetes.io/docs/concepts/storage/volumes/)
   volumes: []
@@ -98,16 +98,16 @@ service:
   # `config.ports.*` keeps `targetPort` in sync without touching this section.
   ports:
     # -- Service port for the HTTP/HTTPS CONNECT proxy (maps to the `proxy` named containerPort)
-    proxy: 3128
+    proxy: 8080
     # -- Service port for the SOCKS4/5 proxy (maps to the `socks` named containerPort)
-    socks: 1080
+    socks: 8081
 
 config:
   log:
     # -- Enable logging; set to `false` to redirect output to `/dev/null`
     enabled: true
     # -- (string/null) Log output destination: a file path, `/dev/stdout`, `/dev/null`, etc.
-    # @default -- `/dev/stdout`
+    # @default -- `/dev/null`
     output: null
 
   auth:
@@ -125,20 +125,20 @@ config:
 
   dns:
     # -- (string/null) Primary DNS resolver address
-    # @default -- `1.0.0.1` (Cloudflare)
+    # @default -- `1.1.1.1` (Cloudflare)
     primaryResolver: null
     # -- (string/null) Secondary DNS resolver address
-    # @default -- `8.8.4.4` (Google)
+    # @default -- `8.8.8.8` (Google)
     secondaryResolver: null
     # -- (integer/null) DNS response cache table size in entries (minimum 256)
-    # @default -- `65536`
+    # @default -- `512`
     cacheSize: null
 
   ports:
     # -- HTTP/HTTPS CONNECT proxy listen port; sets the `PROXY_PORT` env var and the `proxy` containerPort
-    proxy: 3128
+    proxy: 8080
     # -- SOCKS4/5 proxy listen port; sets the `SOCKS_PORT` env var and the `socks` containerPort
-    socks: 1080
+    socks: 8081
 
   limits:
     # -- (integer/null) Maximum number of simultaneous connections per service
