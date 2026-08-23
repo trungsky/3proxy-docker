@@ -1,7 +1,9 @@
 #!/bin/lua
 
-local CFG_PATH  = "/etc/3proxy/3proxy.cfg"
-local PROXY_BIN = "/bin/3proxy"
+local CUSTOM_CFG_PATH    = "/etc/3proxy/3proxy.cfg" -- user-provided config, mounted from outside
+local GENERATED_CFG_PATH = "/tmp/3proxy.cfg"        -- regenerated from the environment on every start
+local MOUNTINFO_PATH     = "/proc/self/mountinfo"
+local PROXY_BIN          = "/bin/3proxy"
 
 local ENV_LOG_OUTPUT         = "LOG_OUTPUT"
 local ENV_PRIMARY_RESOLVER   = "PRIMARY_RESOLVER"
@@ -80,10 +82,46 @@ local function parse_extra_accounts(raw)
   return list
 end
 
-local probe = io.open(CFG_PATH, "r")
-if probe then
-  probe:close() -- skip config generation when the file already exists (e.g. mounted from outside)
-else
+-- Returns true when path (or its parent directory) is a mount point, false when it is not, or nil
+-- when /proc is unavailable and the answer is unknown.
+--
+-- @param path string
+-- @return boolean|nil
+local function is_mount_point(path)
+  local f = io.open(MOUNTINFO_PATH, "r")
+  if not f then return nil end
+  local parent = path:match("^(.*)/[^/]+$")
+  local found = false
+  for line in f:lines() do
+    -- mountinfo fields: id parent-id major:minor root MOUNT-POINT options ...
+    local mount_point = line:match("^%d+ %d+ %S+ %S+ (%S+)")
+    if mount_point == path or mount_point == parent then
+      found = true
+      break
+    end
+  end
+  f:close()
+  return found
+end
+
+-- A config mounted from outside wins over the environment. A leftover file that is NOT a mount
+-- (e.g. written by an older image version into a persistent root filesystem) must not freeze the
+-- configuration, so it is ignored and the config is regenerated from the environment instead.
+local cfg_path = GENERATED_CFG_PATH
+local custom = io.open(CUSTOM_CFG_PATH, "r")
+if custom then
+  custom:close()
+  if is_mount_point(CUSTOM_CFG_PATH) ~= false then
+    cfg_path = CUSTOM_CFG_PATH
+  else
+    io.stderr:write(
+      "entrypoint: ignoring stale " .. CUSTOM_CFG_PATH ..
+      " (not a mount point); regenerating config from the environment\n"
+    )
+  end
+end
+
+if cfg_path == GENERATED_CFG_PATH then
   local log_output         = getenv(ENV_LOG_OUTPUT,         "/dev/null")
   local primary_resolver   = getenv(ENV_PRIMARY_RESOLVER,   "1.1.1.1")
   local secondary_resolver = getenv(ENV_SECONDARY_RESOLVER, "8.8.8.8")
@@ -119,13 +157,6 @@ else
     )
     proxy_login    = ""
     proxy_password = ""
-  end
-
-  if proxy_login == "" and #extra_accounts > 0 then
-    io.stderr:write(
-      "entrypoint: warning: " .. ENV_EXTRA_ACCOUNTS ..
-      " is set but auth is disabled (no " .. ENV_PROXY_LOGIN .. "/" .. ENV_PROXY_PASSWORD .. ")\n"
-    )
   end
 
   local lines = {}
@@ -176,21 +207,24 @@ else
   -- max simultaneous connections per service; system needs 2×n open file descriptors (ulimit -n)
   toConfig("maxconn " .. max_connections)
 
+  -- CL = cleartext password; alternatives: CR (crypt hash), NT (Windows MD4 hash)
+  local users, allowed = {}, {}
   if proxy_login ~= "" then
+    users[#users + 1]     = proxy_login .. ":CL:" .. proxy_password
+    allowed[#allowed + 1] = proxy_login
+  end
+  for _, acc in ipairs(extra_accounts) do
+    users[#users + 1]     = acc.login .. ":CL:" .. acc.password
+    allowed[#allowed + 1] = acc.login
+  end
+
+  -- auth is enabled as soon as any account exists: PROXY_LOGIN/PROXY_PASSWORD, EXTRA_ACCOUNTS, or both
+  if #users > 0 then
     toConfig("")
-    -- CL = cleartext password; alternatives: CR (crypt hash), NT (Windows MD4 hash)
-    local users = {proxy_login .. ":CL:" .. proxy_password}
-    for _, acc in ipairs(extra_accounts) do
-      users[#users + 1] = acc.login .. ":CL:" .. acc.password
-    end
     toConfig("users " .. table.concat(users, " "))
     -- require username+password on every connection (vs. iponly / none)
     toConfig("auth strong")
     -- ACL: permit only the listed users; full syntax: allow users src-ip dst-ip dst-port
-    local allowed = {proxy_login}
-    for _, acc in ipairs(extra_accounts) do
-      allowed[#allowed + 1] = acc.login
-    end
     toConfig("allow " .. table.concat(allowed, ","))
   end
 
@@ -214,24 +248,24 @@ else
 
   -- write config
 
-  local f, open_err = io.open(CFG_PATH, "w")
+  local f, open_err = io.open(GENERATED_CFG_PATH, "w")
   if not f then
-    die("cannot open " .. CFG_PATH .. ": " .. open_err)
+    die("cannot open " .. GENERATED_CFG_PATH .. ": " .. open_err)
   end
 
   local write_ok, write_err = f:write(table.concat(lines, "\n"), "\n")
   if not write_ok then
     f:close()
-    die("cannot write " .. CFG_PATH .. ": " .. write_err)
+    die("cannot write " .. GENERATED_CFG_PATH .. ": " .. write_err)
   end
   local close_ok, close_err = f:close()
   if not close_ok then
-    die("cannot close " .. CFG_PATH .. ": " .. close_err)
+    die("cannot close " .. GENERATED_CFG_PATH .. ": " .. close_err)
   end
 end
 
 -- launch 3proxy
 
 -- os.exec replaces the current process image; it never returns on success.
-local _, exec_err, exec_code = os.exec(PROXY_BIN, CFG_PATH)
+local _, exec_err, exec_code = os.exec(PROXY_BIN, cfg_path)
 die(PROXY_BIN .. ": " .. exec_err .. " (errno " .. exec_code .. ")")

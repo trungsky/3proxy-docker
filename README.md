@@ -55,11 +55,11 @@ over the vanilla upstream build:
 | `SECONDARY_RESOLVER` | Secondary DNS resolver (`8.8.8.8` by default)                                         | `2001:4860:4860::8844`          |
 | `MAX_CONNECTIONS`    | Maximum number of connections (`512` by default); requires `ulimit nofile` ≥ 2×value  | `2056`                          |
 | `DNS_CACHE_SIZE`     | DNS cache size (`512` by default)                                                     | `5000`                          |
-| `PROXY_LOGIN`        | Authorization login (empty by default)                                                | `username`                      |
+| `PROXY_LOGIN`        | Authorization login (empty by default); auth is enabled when this or `EXTRA_ACCOUNTS` is set | `username`                      |
 | `PROXY_PASSWORD`     | Authorization password (empty by default)                                             | `password`                      |
 | `PROXY_PORT`         | **HTTP** proxy port (`8080` by default)                                               | `8080`                          |
 | `SOCKS_PORT`         | **SOCKS** proxy port (`8081` by default)                                              | `8888`                          |
-| `EXTRA_ACCOUNTS`     | Additional proxy users (format `login:password;login2:password2`, empty by default)   | `evil:live;guest:pass`          |
+| `EXTRA_ACCOUNTS`     | Additional proxy users (format `login:password;login2:password2`, empty by default); enables auth on its own, `PROXY_LOGIN` is optional | `evil:live;guest:pass`          |
 | `EXTRA_CONFIG`       | Raw 3proxy config lines injected before `proxy`/`socks` directives (empty by default) | `# line 1\\n# line 2`           |
 | `PROXY_EXTRA_ARGS`   | Extra arguments appended to the `proxy` directive (empty by default)                  | `-ocTCP_NODELAY -osTCP_NODELAY` |
 | `SOCKS_EXTRA_ARGS`   | Extra arguments appended to the `socks` directive (empty by default)                  | `-ocTCP_NODELAY -osTCP_NODELAY` |
@@ -184,8 +184,12 @@ services:
 
 ### Custom 3proxy config file
 
-If `/etc/3proxy/3proxy.cfg` exists when the container starts, the entrypoint skips config generation entirely and
-passes the file directly to 3proxy. All env-var settings are ignored in this case.
+By default the entrypoint regenerates `/tmp/3proxy.cfg` from the environment variables on **every** start, so
+changing an env var and restarting the container is enough to apply it.
+
+If `/etc/3proxy/3proxy.cfg` is mounted when the container starts, the entrypoint skips config generation entirely and
+passes that file directly to 3proxy. All env-var settings are ignored in this case. A leftover file at that path that
+is not a mount point (for example one written by an older image into a persistent root filesystem) is ignored.
 
 **Docker CLI:**
 
